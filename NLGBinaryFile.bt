@@ -1,0 +1,220 @@
+//------------------------------------------------
+//--- 010 Editor v16.0.2 Binary Template
+//
+//      File: 
+//   Authors: KillzXGaming
+//   Version: 
+//   Purpose: 
+//  Category: 
+// File Mask: 
+//  ID Bytes: 
+//   History: 
+//------------------------------------------------
+
+struct Chunk;
+
+LittleEndian();
+
+typedef enum <ushort>
+{
+    FileHeader             = 0x1301,
+    TextureBundles         = 0x0020,
+    ModelBundles           = 0x0021,
+    AnimationBundles       = 0x1302,
+    Room                   = 0x0010,
+    CutsceneNLB            = 0x0030,
+    Config                 = 0x0031, // Text for LM2 ghost configs
+    Video                  = 0x1200, // MPEG Video File
+    AudioBanks             = 0x3000,
+    Effects                = 0x4000,
+    Script                 = 0x5000,
+    GameObjectScriptTable  = 0x6500,
+    GameObject             = 0x6510,
+    MaterialEffects        = 0xB300,
+    MaterialParams         = 0xB310,
+    MaterialShaders        = 0xB320,
+    Shaders                = 0xB400,
+    ShaderConstants        = 0xB404,
+    Texture                = 0xB500,
+    TextureHeader          = 0xB501,
+    TextureData            = 0xB502,
+    Model                  = 0xB000,
+    CollisionStatic        = 0xC107,
+    Hitboxes               = 0xC300,
+    HitboxRigged           = 0xD000,
+    ClothPhysics           = 0xE000,
+    AnimationData          = 0x7000,
+    Font                   = 0x7010,
+    MessageData            = 0x7020,
+    Skeleton               = 0x7100,
+}ChunkType;
+
+typedef enum <uchar>
+{
+    LOAD_VAR       = 0x00, // Load global variable
+    LOAD_VAR_LONG     = 0x01, // Load global variable (long index)
+    LOAD_STRING_VAR       = 0x02, // Load constant
+    LOAD_STRING_VAR_LONG     = 0x03, // Load constant (long offset)
+
+    PUSH      = 0x04, // Push the operand value onto stack
+    BRANCH_NONZERO       = 0x05, // Branch if non-zero and skip next instruction
+    JUMP       = 0x06, // Unconditional jump (changes instruction pointer)
+    CALL_NATIVE     = 0x07, // Call native function
+    CALL_NATIVE_L   = 0x08, // Call native function (long index)
+    CALL      = 0x09, // Call script function
+    CALLG     = 0x0A, // Call global script function
+    CALL_EXT     = 0x0B, // Call extension
+    RETURN       = 0x0C, // Return
+    RET_S      = 0x0D, // Return with stack adjust
+    PTR       = 0x0E, // Load local
+    STL       = 0x0F, // Store local
+    MOV_8     = 0x10, // Writes value to pointer (1/2/4/8 bytes)
+    MOV_4     = 0x11, // Reads value from pointer (1/2/4/8 bytes)
+    PUSHS     = 0x12, // Push signed small immediate
+    LDO       = 0x13, // Load object or static field
+    LDF       = 0x14, // Load function pointer
+    SHIFT_PTR      = 0x15, // Add immediate
+    SHIFT_PTR_L    = 0x16, // Add immediate (long)
+    LDGA      = 0x17, // Load global address
+    LDGA_L    = 0x18, // Load global address (long)
+    LDLA      = 0x19, // Load local address
+
+    CALLM     = 0x1C, // Call method 
+    STG       = 0x1D, // Store to global
+    LDGPtr    = 0x1E, // Load from global
+    MEMZ      = 0x1F, // Memory zero
+    SETL      = 0x20, // Set local (no pop)
+    MOVL      = 0x21, // Move local
+    MOVLP     = 0x22, // Move local and push
+    SETLC     = 0x23, // Set local constant
+    SETLI     = 0x24, // Set local immediate
+    PUSHR     = 0x25, // Push local range
+    PUSHT     = 0x26  // Push three locals
+}OpCode<format=hex>;
+
+typedef struct // ScriptHeader
+{
+    uint Hash;
+    uint StringBufferSize;
+}ScriptHeader<bgcolor=cGreen>;
+
+typedef struct // ScriptHashBundle
+{
+    uint Count;
+    uint Hashes[Count]<optimize=false>;
+}ScriptHashBundle<bgcolor=cGreen>;
+
+typedef struct // ScriptHashBundle
+{
+    uint Hash;
+    uint CodeStartIndex; // * 2 to get code offset
+    uint Flag;
+}ScripFunction<bgcolor=cGreen>;
+
+typedef struct
+{
+    ushort code;
+    local OpCode opCode = (OpCode)(code >> 10);
+    local uint operand = code & 0xFFFF03FFu;
+    
+    switch (opCode)
+    {
+        case 0x01:
+        case 0x03:
+        case 0x08:
+        case 0x16:
+        case LDGA_L:
+        case 0x06:
+            ushort low <hidden=true>;
+            operand = (operand << 16) | low;
+            break;
+        case 0x05:
+        case STG:
+           ushort extra;
+            break;
+        default:
+            break;
+    }
+    
+}Instruction<read=InstructionRead, bgcolor=cGreen>;
+
+typedef struct(uint size)
+{
+    local uint end = FTell() + size;
+    while(FTell() < end)
+    {
+        Instruction instruction;
+   }
+}ScriptCode<bgcolor=cGreen>;
+
+typedef struct 
+{
+    uint Hash;
+    uint CodeSize;
+    uint DataSize;
+    ushort StringTableSize;
+    ushort Unk;
+    byte Data[DataSize];
+    ScriptCode Code(CodeSize);
+    byte StringTable[StringTableSize];
+    
+}ScriptData<bgcolor=cGreen>;
+
+
+typedef struct(ushort type, uint size)
+{
+    local uint end = FTell() + size;
+   // if (type == 0x5012) 
+    //     ScriptData scriptData;
+    if (type == 0x5013) 
+         ScriptHeader headers[size / 8] <optimize=false>;
+    else if (type == 0x5014) 
+         ScripFunction function[size / 12] <optimize=false>;
+    else if (type == 0x5011) 
+         ScriptHashBundle hashBundles[size / 12] <optimize=false>;
+    else
+        byte data[size];
+
+    FSeek(end);
+}ChunkContents;
+
+typedef struct
+ {
+    ChunkType type;
+	ushort Flags;
+
+    string typeName;
+    uint size;
+    
+    local int HasChildren = (Flags >> 15) & 1;
+    if (HasChildren)
+    {
+        local uint end = FTell() + size;
+        while(FTell() < end)
+        {
+            Chunk entry;
+        }
+    }
+    else
+    {
+        ChunkContents contents(type, size );
+    }
+     
+} Chunk<bgcolor=cYellow>;
+
+while(!FEof())
+{
+    Chunk file;
+}
+
+string InstructionRead(Instruction &instruction)
+{
+	return EnumToString(instruction.opCode) + " - " + Stringf(instruction.operand);
+}
+
+string Stringf(int value)
+{
+	string s;
+	SPrintf(s, "%d", value);
+	return s;
+}
